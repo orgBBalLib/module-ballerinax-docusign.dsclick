@@ -24,9 +24,13 @@ service /clickapi on ep0 {
     #
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function get service_information() returns anydata {
-        ServiceInformation response = {
+        record {|
+            string buildVersion?;
+            string[] linkedSites?;
+            record {|string version?; string versionUrl?;|}[] serviceVersions?;
+        |} response = {
             buildVersion: "23.4.0.266 (apiclick2023.10.29.266+b6661c114fe2)",
             linkedSites: ["https://demo.docusign.net"],
             serviceVersions: [
@@ -50,9 +54,14 @@ service /clickapi on ep0 {
     # + to_date - Optional. The latest date to return agreements from. 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function get v1/accounts/[string accountId]/clickwraps(string? from_date, string? ownerUserId, string? page_number, string? shared, string? status, string? to_date) returns anydata {
-        ClickwrapVersionsResponse response = {
+        record {|
+            record {|string clickwrapId?; string versionId?; string status?;|}[] clickwraps?;
+            int minimumPagesRemaining?;
+            int page?;
+            int pageSize?;
+        |} response = {
             clickwraps: [
                 {
                     clickwrapId: "clickwrap1",
@@ -78,9 +87,21 @@ service /clickapi on ep0 {
     # + payload - parameter description 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function post v1/accounts/[string accountId]/clickwraps(@http:Payload ClickwrapRequest|xml payload) returns anydata {
-        ClickwrapVersionSummaryResponse response = {
+        record {|
+            string accountId?;
+            string clickwrapId?;
+            string clickwrapName?;
+            string clickwrapVersionId?;
+            string lastModifiedBy?;
+            string ownerUserId?;
+            boolean requireReacceptance?;
+            record {} scheduledReacceptance?;
+            string status?;
+            string versionId?;
+            string versionNumber?;
+        |} response = {
             accountId: accountId,
             clickwrapId: "clickwrap123",
             clickwrapName: "ReturnPolicy",
@@ -101,9 +122,11 @@ service /clickapi on ep0 {
     # + clickwrapIds - A comma-separated list of clickwrap IDs to delete. 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function delete v1/accounts/[string accountId]/clickwraps(string? clickwrapIds) returns anydata {
-        ClickwrapsDeleteResponse response = {
+        record {|
+            record {|string clickwrapId?; string clickwrapName?;|}[] clickwraps?;
+        |} response = {
             clickwraps: [
                 {
                     clickwrapId: "clickwrap1",
@@ -124,9 +147,23 @@ service /clickapi on ep0 {
     # + clickwrapId - The ID of the clickwrap. 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function get v1/accounts/[string accountId]/clickwraps/[string clickwrapId]() returns anydata {
-        ClickwrapVersionResponse response = {
+        record {|
+            string accountId?;
+            string clickwrapId?;
+            string clickwrapName?;
+            string clickwrapVersionId?;
+            DisplaySettings displaySettings?;
+            Document[] documents?;
+            string lastModifiedBy?;
+            string ownerUserId?;
+            boolean requireReacceptance?;
+            record {} scheduledReacceptance?;
+            string status?;
+            string versionId?;
+            string versionNumber?;
+        |} response = {
             accountId: accountId,
             clickwrapId: "clickwrap123",
             clickwrapName: "ReturnPolicy",
@@ -170,7 +207,7 @@ service /clickapi on ep0 {
     # + payload - parameter description 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function put v1/accounts/[string accountId]/clickwraps/[string clickwrapId](@http:Payload xml|ClickwrapTransferRequest payload) returns anydata {
         return {
             accountId: accountId,
@@ -193,9 +230,13 @@ service /clickapi on ep0 {
     # + versions - A comma-separated list of versions to delete. 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function delete v1/accounts/[string accountId]/clickwraps/[string clickwrapId](string? versions) returns anydata {
-        ClickwrapVersionsDeleteResponse payload = {
+        record {|
+            string clickwrapId?;
+            string clickwrapName?;
+            record {|string versionId?; string status?;|}[] versions?;
+        |} responsePayload = {
             clickwrapId: "clickwrap123",
             clickwrapName: "ReturnPolicy",
             versions: [
@@ -209,7 +250,7 @@ service /clickapi on ep0 {
                 }
             ]
         };
-        return payload;    
+        return responsePayload;    
     }
 
     # Checks if a user has agreed to a clickwrap.
@@ -219,10 +260,11 @@ service /clickapi on ep0 {
     # + payload - parameter description 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function post v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/agreements(@http:Payload xml|UserAgreementRequest payload) returns anydata {
+        string clientUserId = "user123";
         return {
-            clientUserId: userId,
+            clientUserId: clientUserId,
             accountId: accountId
         };
     }
@@ -234,7 +276,7 @@ service /clickapi on ep0 {
     # + agreementId - The agreement ID. 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function get v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/agreements/[string agreementId]() returns anydata {
     }
 
@@ -245,8 +287,8 @@ service /clickapi on ep0 {
     # + agreementId - The agreement ID. 
     # + return - returns can be any of following types
     # http:Ok (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
-    resource function get v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/agreements/[string agreementId]/download() returns http:Ok|BadRequestAnydata {
+    # http:BadRequest (Error encountered.)
+    resource function get v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/agreements/[string agreementId]/download() returns http:Ok|http:BadRequest {
         return http:OK;
     }
 
@@ -261,9 +303,13 @@ service /clickapi on ep0 {
     # + to_date - Optional. The latest date to return agreements from. 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function get v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/users(string? client_user_id, string? from_date, string? page_number, string? status, string? to_date) returns anydata {
-        ClickwrapAgreementsResponse response = {
+        record {|
+            int page?;
+            int pageSize?;
+            anydata[] userAgreements?;
+        |} response = {
             page: 1,
             pageSize: 10,
             userAgreements: []
@@ -278,7 +324,7 @@ service /clickapi on ep0 {
     # + payload - parameter description 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function post v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/versions(@http:Payload ClickwrapRequest|xml payload) returns anydata {
     }
     # Deletes the versions of a clickwrap.
@@ -288,7 +334,7 @@ service /clickapi on ep0 {
     # + clickwrapVersionIds - A comma-separated list of clickwrap version IDs to delete. 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function delete v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/versions(string? clickwrapVersionIds) returns anydata {
         return {
             clickwrapId: "clickwrap123",
@@ -313,9 +359,23 @@ service /clickapi on ep0 {
     # + versionId - The ID of the version. 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function get v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/versions/[string versionId]() returns anydata {
-        ClickwrapVersionResponse response = {
+        record {|
+            string accountId?;
+            string clickwrapId?;
+            string clickwrapName?;
+            string clickwrapVersionId?;
+            DisplaySettings displaySettings?;
+            Document[] documents?;
+            string lastModifiedBy?;
+            string ownerUserId?;
+            boolean requireReacceptance?;
+            record {} scheduledReacceptance?;
+            string status?;
+            string versionId?;
+            string versionNumber?;
+        |} response = {
             accountId: accountId,
             clickwrapId: "clickwrap123",
             clickwrapName: "ReturnPolicy",
@@ -360,9 +420,21 @@ service /clickapi on ep0 {
     # + payload - parameter description 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function put v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/versions/[string versionId](@http:Payload ClickwrapRequest payload) returns anydata {
-        ClickwrapVersionSummaryResponse response = {
+        record {|
+            string accountId?;
+            string clickwrapId?;
+            string clickwrapName?;
+            string clickwrapVersionId?;
+            string lastModifiedBy?;
+            string ownerUserId?;
+            boolean requireReacceptance?;
+            record {} scheduledReacceptance?;
+            string status?;
+            string versionId?;
+            string versionNumber?;
+        |} response = {
             accountId: accountId,
             clickwrapId: clickwrapId,
             clickwrapName: payload.clickwrapName,
@@ -384,9 +456,18 @@ service /clickapi on ep0 {
     # + versionId - The ID of the version. 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function delete v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/versions/[string versionId]() returns anydata {
-        ClickwrapVersionDeleteResponse response = {
+        record {|
+            string clickwrapVersionId?;
+            string lastModifiedBy?;
+            string ownerUserId?;
+            boolean requireReacceptance?;
+            record {} scheduledReacceptance?;
+            string status?;
+            string versionId?;
+            string versionNumber?;
+        |} response = {
             clickwrapVersionId: "version123",
             lastModifiedBy: "user123",
             ownerUserId: "user456",
@@ -410,9 +491,13 @@ service /clickapi on ep0 {
     # + to_date - Optional. The latest date to return agreements from. 
     # + return - returns can be any of following types
     # anydata (A successful response or an error.)
-    # BadRequestAnydata (Error encountered.)
+    # http:BadRequest (Error encountered.)
     resource function get v1/accounts/[string accountId]/clickwraps/[string clickwrapId]/versions/[string versionId]/users(string? client_user_id, string? from_date, string? page_number, string? status, string? to_date) returns anydata {
-        ClickwrapAgreementsResponse response = {
+        record {|
+            int page?;
+            int pageSize?;
+            anydata[] userAgreements?;
+        |} response = {
             page: 1,
             pageSize: 10,
             userAgreements: []
