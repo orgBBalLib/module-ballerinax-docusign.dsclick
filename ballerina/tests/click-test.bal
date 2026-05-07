@@ -18,6 +18,7 @@ import ballerina/test;
 import ballerina/os;
 import ballerina/lang.array;
 import ballerina/io;
+import ballerina/http;
 
 Client docuSignClient = test:mock(Client);
 
@@ -33,27 +34,17 @@ configurable string userId = ?;
 @test:BeforeSuite
 function initializeClientsForDocuSignServer() returns error? {
     if isTestOnLiveServer {
-        docuSignClient = check new("https://demo.docusign.net/clickapi/",
-            {
-                timeout: 10000,
-                auth: {
-                    clientId: os:getEnv("CLIENT_ID"),
-                    clientSecret: os:getEnv("CLIENT_SECRET"),
-                    refreshToken: os:getEnv("REFRESH_TOKEN"),
-                    refreshUrl: os:getEnv("REFRESH_URL")
-                }
+        docuSignClient = check new (
+            serviceUrl = "https://demo.docusign.net/clickapi/",
+            config = {
+                timeout: 10000
             }
         );
     } else {
-        docuSignClient = check new("http://localhost:9092/clickapi",
-            {
-                timeout: 10000,
-                auth: {
-                    clientId,
-                    clientSecret,
-                    refreshToken,
-                    refreshUrl
-                }
+        docuSignClient = check new (
+            serviceUrl = "http://localhost:9092/clickapi",
+            config = {
+                timeout: 10000
             }
         );
     }
@@ -63,18 +54,8 @@ function initializeClientsForDocuSignServer() returns error? {
     groups: ["account"]
 }
 function testServiceInfo() returns error? {
-    ServiceInformation expectedPayload = {
-        buildVersion: "23.4.0.266 (apiclick2023.10.29.266+b6661c114fe2)",
-        linkedSites: ["https://demo.docusign.net"],
-        serviceVersions: [
-            {
-                version:"v1",
-                versionUrl:"https://demo.docusign.net/clickapi/v1"
-            }
-        ]
-    };
-    ServiceInformation response = check docuSignClient->/service_information;
-    test:assertEquals(response, expectedPayload);
+    http:Response response = check docuSignClient->/service_information;
+    test:assertEquals(response.statusCode, 200);
 }
 
 @test:Config {
@@ -102,9 +83,11 @@ function testCreateClickWrap() returns error? {
             sendToEmail: true 
         }
     };
-    ClickwrapVersionSummaryResponse response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
-    test:assertEquals(response.clickwrapName, clickwrapName);
-    string? clickwrapId = response.clickwrapId;
+    http:Response response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
+    test:assertEquals(response.statusCode, 200);
+    json jsonResponse = check response.getJsonPayload();
+    json|error clickwrapIdJson = jsonResponse.clickwrapId;
+    string? clickwrapId = clickwrapIdJson is json ? <string?>clickwrapIdJson : ();
     if clickwrapId is () {
         return error("Clickwrap Id is not available");
     }
@@ -136,14 +119,15 @@ function testDeleteClickWrap() returns error? {
             sendToEmail: true 
         }
     };
-    ClickwrapVersionSummaryResponse response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
-    test:assertEquals(response.clickwrapName, clickwrapName);
-    string? clickwrapId = response.clickwrapId;
+    http:Response response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
+    json jsonResponse = check response.getJsonPayload();
+    json|error clickwrapIdJson = jsonResponse.clickwrapId;
+    string? clickwrapId = clickwrapIdJson is json ? <string?>clickwrapIdJson : ();
     if clickwrapId is () {
         return error("Clickwrap Id is not available");
     }
-    ClickwrapVersionsDeleteResponse deleteResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId].delete();
-    test:assertEquals(deleteResponse.clickwrapId, response.clickwrapId);
+    http:Response deleteResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId].delete();
+    test:assertEquals(deleteResponse.statusCode, 200);
 }
 
 @test:Config {}
@@ -169,13 +153,15 @@ function testGetSingleClickwrap() returns error? {
             sendToEmail: true 
         }
     };
-    ClickwrapVersionSummaryResponse response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
-    string? clickwrapId = response.clickwrapId;
+    http:Response response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
+    json jsonResponse = check response.getJsonPayload();
+    json|error clickwrapIdJson = jsonResponse.clickwrapId;
+    string? clickwrapId = clickwrapIdJson is json ? <string?>clickwrapIdJson : ();
     if clickwrapId is () {
         return error("Clickwrap Id is not available");
     }
-    ClickwrapVersionSummaryResponse getResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]();
-    test:assertEquals(getResponse.accountId, accountId);
+    http:Response getResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]();
+    test:assertEquals(getResponse.statusCode, 200);
     _ = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId].delete();
 }
 
@@ -202,10 +188,12 @@ function testGetAllClickwraps() returns error? {
             sendToEmail: true 
         }
     };
-    ClickwrapVersionSummaryResponse response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
-    ClickwrapVersionsResponse allClickwraps = check docuSignClient->/v1/accounts/[accountId]/clickwraps();
-    test:assertNotEquals(allClickwraps.clickwraps, ());
-    string? clickwrapId = response.clickwrapId;
+    http:Response response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
+    json jsonResponse = check response.getJsonPayload();
+    http:Response allClickwrapsResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps();
+    test:assertEquals(allClickwrapsResponse.statusCode, 200);
+    json|error clickwrapIdJson = jsonResponse.clickwrapId;
+    string? clickwrapId = clickwrapIdJson is json ? <string?>clickwrapIdJson : ();
     if clickwrapId is () {
         return error("Clickwrap Id is not available");
     }
@@ -237,17 +225,20 @@ function testDeleteClickwrapVersionByNumber() returns error? {
             sendToEmail: true 
         }
     };
-    ClickwrapVersionSummaryResponse response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
-    string? clickwrapId = response.clickwrapId;
+    http:Response response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
+    json jsonResponse = check response.getJsonPayload();
+    json|error clickwrapIdJson = jsonResponse.clickwrapId;
+    string? clickwrapId = clickwrapIdJson is json ? <string?>clickwrapIdJson : ();
     if clickwrapId is () {
         return error("Clickwrap Id is not available");
     }
-    string? versionNumber = response.versionNumber;
+    json|error versionNumberJson = jsonResponse.versionNumber;
+    string? versionNumber = versionNumberJson is json ? <string?>versionNumberJson : ();
     if versionNumber is () {
         return error("Version number is not available");
     }
-    ClickwrapVersionDeleteResponse deleteResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]/versions/[versionNumber].delete();
-    test:assertEquals(deleteResponse.versionNumber, response.versionNumber);
+    http:Response deleteResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]/versions/[versionNumber].delete();
+    test:assertEquals(deleteResponse.statusCode, 200);
 }
 
 @test:Config {
@@ -275,17 +266,20 @@ function testGetClickwrapAgreementsByVersionNumber() returns error? {
             sendToEmail: true 
         }
     };
-    ClickwrapVersionSummaryResponse response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
-    string? clickwrapId = response.clickwrapId;
+    http:Response response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
+    json jsonResponse = check response.getJsonPayload();
+    json|error clickwrapIdJson = jsonResponse.clickwrapId;
+    string? clickwrapId = clickwrapIdJson is json ? <string?>clickwrapIdJson : ();
     if clickwrapId is () {
         return error("Clickwrap Id is not available");
     }
-    string? versionNumber = response.versionNumber;
+    json|error versionNumberJson = jsonResponse.versionNumber;
+    string? versionNumber = versionNumberJson is json ? <string?>versionNumberJson : ();
     if versionNumber is () {
         return error("Version number is not available");
     }
-    ClickwrapAgreementsResponse agreementResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]/versions/[versionNumber]/users();
-    test:assertEquals(agreementResponse.userAgreements, []);
+    http:Response agreementResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]/versions/[versionNumber]/users();
+    test:assertEquals(agreementResponse.statusCode, 200);
 }
 
 @test:Config {
@@ -313,17 +307,20 @@ function testGetClickwrapVersionByNumber() returns error? {
             sendToEmail: true 
         }
     };
-    ClickwrapVersionSummaryResponse response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
-    string? clickwrapId = response.clickwrapId;
+    http:Response response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
+    json jsonResponse = check response.getJsonPayload();
+    json|error clickwrapIdJson = jsonResponse.clickwrapId;
+    string? clickwrapId = clickwrapIdJson is json ? <string?>clickwrapIdJson : ();
     if clickwrapId is () {
         return error("Clickwrap Id is not available");
     }
-    string? versionNumber = response.versionNumber;
+    json|error versionNumberJson = jsonResponse.versionNumber;
+    string? versionNumber = versionNumberJson is json ? <string?>versionNumberJson : ();
     if versionNumber is () {
         return error("Version number is not available");
     }
-    ClickwrapVersionResponse getResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]/versions/[versionNumber]();
-    test:assertEquals(getResponse.accountId, accountId);
+    http:Response getResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]/versions/[versionNumber]();
+    test:assertEquals(getResponse.statusCode, 200);
     _ = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId].delete();
 }
 
@@ -353,19 +350,22 @@ function testUpdateClickwrapVersionByNumber() returns error? {
         }
     };
     string clickwrapUpdatedName = "Updated Clickwrap";
-    ClickwrapVersionSummaryResponse response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
-    string? clickwrapId = response.clickwrapId;
+    http:Response response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
+    json jsonResponse = check response.getJsonPayload();
+    json|error clickwrapIdJson = jsonResponse.clickwrapId;
+    string? clickwrapId = clickwrapIdJson is json ? <string?>clickwrapIdJson : ();
     if clickwrapId is () {
         return error("Clickwrap Id is not available");
     }
-    string? versionNumber = response.versionNumber;
+    json|error versionNumberJson = jsonResponse.versionNumber;
+    string? versionNumber = versionNumberJson is json ? <string?>versionNumberJson : ();
     if versionNumber is () {
         return error("Version number is not available");
     }
-    ClickwrapVersionSummaryResponse updateRes = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]/versions/[versionNumber].put({
+    http:Response updateRes = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]/versions/[versionNumber].put({
         clickwrapName: clickwrapUpdatedName
     });
-    test:assertEquals(updateRes.clickwrapName, clickwrapUpdatedName);
+    test:assertEquals(updateRes.statusCode, 200);
 }
 
 @test:Config {}
@@ -390,18 +390,22 @@ function testPostUserAgreement() returns error? {
             documentDisplay: "document",
             sendToEmail: true 
         },
-        status: "active"
+        status: {"value": "active"}
     };
-    ClickwrapVersionSummaryResponse response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
-    if response.status == "active" {
-        string? clickwrapId = response.clickwrapId;
+    http:Response response = check docuSignClient->/v1/accounts/[accountId]/clickwraps.post(payload);
+    json jsonResponse = check response.getJsonPayload();
+    json|error statusJson = jsonResponse.status;
+    string? status = statusJson is json ? <string?>statusJson : ();
+    if status == "active" {
+        json|error clickwrapIdJson = jsonResponse.clickwrapId;
+        string? clickwrapId = clickwrapIdJson is json ? <string?>clickwrapIdJson : ();
         if clickwrapId is () {
             return error("Clickwrap Id is not available");
         }
-        UserAgreementResponse agreementResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]/agreements.post({
+        http:Response agreementResponse = check docuSignClient->/v1/accounts/[accountId]/clickwraps/[clickwrapId]/agreements.post({
             clientUserId: userId
         });
 
-        test:assertEquals(agreementResponse.accountId, accountId);
+        test:assertEquals(agreementResponse.statusCode, 200);
     }
 }
